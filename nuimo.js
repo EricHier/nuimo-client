@@ -1,7 +1,7 @@
-import { initChromecast, getCachedVolume as getCachedChromecastVolume, setVolume as setChromecastVolume, playing as isChromecastPlaying } from "./chromecast"
-import { connectNuimo, subscribe } from "./nuimo-sdk/src";
+import { connectNuimo, drawMatrix, subscribe } from "./nuimo-sdk/src";
 import { changeSpotifyPlaybackState, nextSong, getCachedVolume as getCachedSpotifyVolume, setVolume as setSpotifyVolume } from "./spotify"
 import { JSONFile, Low } from "lowdb/lib";
+import { next } from "./matrices";
 
 const adapter = new JSONFile("./config.json");
 const db = new Low(adapter);
@@ -18,16 +18,12 @@ const db = new Low(adapter);
   const mac = db.data.mac;
 
   // - - - - - - - - - - - - - - - - - - 
-  //        CHROMECAST STUFF
-  // - - - - - - - - - - - - - - - - - - 
-
-  await initChromecast();
-
-  // - - - - - - - - - - - - - - - - - - 
   //        NUIMO STUFF
   // - - - - - - - - - - - - - - - - - - 
 
-  await connectNuimo(mac, true);
+  await connectNuimo(mac, false);
+
+  await drawMatrix(next);
 
   // play pause
   subscribe("onButtonClick", async () => {

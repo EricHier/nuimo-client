@@ -6,6 +6,7 @@ const config = {
     displayService: null,
     device: null,
     adapter: null,
+    debug: false,
     bluetooth: createBluetooth().bluetooth,
     mac: null,
     callbacks: {
@@ -22,17 +23,6 @@ const config = {
     }
 }
 
-const x =
-    "         "
- +  "  *   *  "
- +  "  **  *  "
- +  "  *** *  "
- +  "  *****  "
- +  "  *** *  "
- +  "  **  *  "
- +  "  *   *  "
- +  "         ";
-
 export async function connectNuimo(mac, debug = false) {
     if (!mac)
         throw new Error("No MAC Address specified")
@@ -41,13 +31,14 @@ export async function connectNuimo(mac, debug = false) {
 
     config.mac = mac;
     config.adapter = adapter;
+    config.debug = debug;
 
     if (!await adapter.isDiscovering())
         await adapter.startDiscovery();
 
     config.device = await adapter.waitDevice(mac);
     await config.device.connect();
-    
+
     config.device.on("disconnect", () => {
         if (debug) console.log("Lost connection to Numio, reconnecting...");
         connectNuimo(mac);
@@ -63,26 +54,6 @@ export async function connectNuimo(mac, debug = false) {
 
     config.service = await config.gattServer.getPrimaryService("f29b1525-cb19-40f3-be5c-7241ecb82fd2");
     config.displayService = await config.gattServer.getPrimaryService("f29b1523-cb19-40f3-be5c-7241ecb82fd1");
-
-    const substrings = [];
-
-    for (let i = 0; i < 81; i += 8)
-        substrings.push(x.substr(i, 8));
-    
-    const binary = substrings.map(leds => {
-        return leds.split('').reduce((acc, led, index) => {
-            if (led !== " ")
-                return acc + (1 << index);
-            else
-                return acc;
-        }, 0)
-    });
-
-    console.log(substrings, binary)
-
-    const c = await config.displayService.getCharacteristicById(0);
-    
-    c.writeValue(Buffer.from(new Uint8Array([0, 136, 48, 225, 194, 135, 11, 19, 34, 0, 16, 255, 20])));
 
     await subscribeCharacteristic(0, async hex => {
 
@@ -119,13 +90,34 @@ export async function connectNuimo(mac, debug = false) {
     });
 }
 
+export async function drawMatrix(matrix) {
+    if (!matrix || matrix.length !== 81)
+        throw new Error("Invalid matrix");
+
+    const substrings = [];
+
+    for (let i = 0; i < 80; i += 8) substrings.push(matrix.substr(i, 8));
+
+    const array = substrings.map(leds => leds.split('').reduce((acc, led, index) => led !== " " ? acc + (1 << index) : acc, 0));
+
+    array.push(16); // 16 if fading
+    array.push(255); // brightness
+    array.push(20); // interval
+
+    if (config.debug) console.log("Sending matrix", array);
+
+    const c = await config.displayService.getCharacteristicById(0);
+
+    await c.writeValue(Buffer.from(new Uint8Array(array)));
+}
+
 export function subscribe(event, callback) {
     if (!config.callbacks.hasOwnProperty(event))
         throw new Error("Invalid event");
-    
+
     if (!event || !callback)
         throw new Error("Invalid parameters")
-    
+
     config.callbacks[event] = callback;
 }
 
@@ -135,7 +127,7 @@ async function subscribeCharacteristic(id, callback) {
 
     const buffer = await characteristic.readValue()
 
-    console.log("Setting up notifications...")
+    if (config.debug) console.log("Setting up notifications...")
 
     await characteristic.startNotifications();
 

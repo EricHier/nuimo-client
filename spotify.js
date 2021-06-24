@@ -75,7 +75,6 @@ export async function changeSpotifyPlaybackState() {
 }
 
 async function getVolume() {
-
     const { device: { volume_percent } } = await request(requests.player);
     return volume_percent / 100;
 }
