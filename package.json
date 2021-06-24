@@ -1,0 +1,19 @@
+{
+  "name": "node-bluetooth-test",
+  "version": "1.0.0",
+  "description": "",
+  "main": "nuimo.js",
+  "scripts": {
+    "start": "node -r esm nuimo.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "castv2-promise": "^1.0.1",
+    "esm": "^3.2.25",
+    "lowdb": "^2.1.0",
+    "node-ble": "git+https://github.com/EricHier/node-ble.git",
+    "node-fetch": "^2.6.1"
+  }
+}
