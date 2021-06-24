@@ -12,6 +12,7 @@
   "dependencies": {
     "castv2-promise": "^1.0.1",
     "esm": "^3.2.25",
+    "lodash": "^4.17.21",
     "lowdb": "^2.1.0",
     "node-ble": "git+https://github.com/EricHier/node-ble.git",
     "node-fetch": "^2.6.1"

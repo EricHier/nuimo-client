@@ -1,7 +1,8 @@
 import { connectNuimo, drawMatrix, subscribe } from "./nuimo-sdk/src";
-import { changeSpotifyPlaybackState, nextSong, getCachedVolume as getCachedSpotifyVolume, setVolume as setSpotifyVolume } from "./spotify"
+import { changeSpotifyPlaybackState, nextSong, previousSong, setVolume as setSpotifyVolume, volume, isPlaying } from "./spotify"
 import { JSONFile, Low } from "lowdb/lib";
-import { next } from "./matrices";
+import { lineMatrixFromNumber, next, play, pause, previous } from "./matrices";
+import _ from "lodash";
 
 const adapter = new JSONFile("./config.json");
 const db = new Low(adapter);
@@ -23,29 +24,42 @@ const db = new Low(adapter);
 
   await connectNuimo(mac, false);
 
-  await drawMatrix(next);
-
   // play pause
   subscribe("onButtonClick", async () => {
     await changeSpotifyPlaybackState();
+
+    if (isPlaying)
+      await drawMatrix(pause);
+    else
+      await drawMatrix(play);
   });
 
   subscribe("onSwipeRight", async () => {
     await nextSong();
+    await drawMatrix(next);
   });
+
+  subscribe("onSwipeLeft", async () => {
+    await previousSong();
+    await drawMatrix(previous);
+  });
+
+  const displayVolume = _.throttle(newVolume => drawMatrix(lineMatrixFromNumber(newVolume)), 300);
 
   // set volume
   subscribe("onWheel", async factor => {
 
-    let modifier = (Math.abs(factor) ** 1.8) * (factor < 0 ? -1 : 1) * 0.01, newVolume = (isChromecastPlaying ? getCachedChromecastVolume() : getCachedSpotifyVolume()) + modifier;
+    if (!isPlaying)
+      return false;
+
+    let modifier = (Math.abs(factor) ** 1.8) * (factor < 0 ? -1 : 1) * 0.01, newVolume = volume + modifier;
 
     if (newVolume < 0) newVolume = 0;
     else if (newVolume > 1) newVolume = 1;
 
-    if (isChromecastPlaying || getCachedSpotifyVolume() == NaN)
-      await setChromecastVolume(newVolume);
-    else
-      await setSpotifyVolume(newVolume);
+    displayVolume(Math.floor(newVolume * 100));
+
+    setSpotifyVolume(newVolume);
   });
 
   console.log("Everything set up!")

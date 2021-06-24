@@ -16,10 +16,11 @@ const requests = {
     pause: ["https://api.spotify.com/v1/me/player/pause", { method: "PUT", headers }],
     resume: ["https://api.spotify.com/v1/me/player/play", { method: "PUT", headers }],
     next: ["https://api.spotify.com/v1/me/player/next", { method: "POST", headers }],
+    previous: ["https://api.spotify.com/v1/me/player/previous", { method: "POST", headers }],
     volume: ["https://api.spotify.com/v1/me/player/volume", { method: "PUT", headers }]
 }
 
-let volume;
+export let volume, isPlaying;
 
 // when the db is ready make sure auth is correct
 db.read().then(async function refreshAuth() {
@@ -49,7 +50,7 @@ db.read().then(async function refreshAuth() {
 
 // refresh volume every couple of seconds
 setInterval(async () => {
-    volume = await getVolume();
+    await updatePlaybackStaus();
 }, 5000);
 
 async function request(type) {
@@ -66,21 +67,27 @@ export async function changeSpotifyPlaybackState() {
 
     const { is_playing } = await request(requests.player);
 
-    if (is_playing)
+    isPlaying = is_playing;
+
+    if (isPlaying)
         await request(requests.pause);
     else
         await request(requests.resume);
 
-    console.log(`Changed Spotify playback state ${is_playing}`);
+    console.log(`Changed Spotify playback state ${isPlaying}`);
 }
 
-async function getVolume() {
-    const { device: { volume_percent } } = await request(requests.player);
-    return volume_percent / 100;
-}
+async function updatePlaybackStaus() {
+    const data = await request(requests.player);
 
-export function getCachedVolume() {
-    return volume;
+    try {
+        const { device: { volume_percent } } = data;
+        volume = volume_percent / 100;
+        isPlaying = true;
+    } catch (e) {
+        volume = 0;
+        isPlaying = false;
+    }
 }
 
 export async function setVolume(pVolume) {
@@ -93,6 +100,10 @@ export async function setVolume(pVolume) {
 
 export async function nextSong() {
     await request(requests.next);
-
     console.log("Skipped song");
+}
+
+export async function previousSong() {
+    await request(requests.previous);
+    console.log("Previous song song");
 }
